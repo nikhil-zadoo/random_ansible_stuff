@@ -1,4 +1,193 @@
 #!/usr/bin/python
+# -*- coding: utf-8 -*-
+
+# Copyright (c) 2017 <nikhil.zadoo@gmail.com>
+# Copyright (c) 2016 <boukili.olivier@gmail.com>
+# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+
+ANSIBLE_METADATA = {'metadata_version': '1.0',
+                    'status': ['preview'],
+                    'supported_by': 'community'}
+
+
+DOCUMENTATION = '''
+---
+module: apache22_mod_proxy
+author: nikhil zadoo"
+version_added: "1.0"
+short_description: Set and/or get members' attributes of an Apache httpd 2.2 mod_proxy balancer pool
+description:
+  - Set and/or get members' attributes of an Apache httpd 2.2 mod_proxy balancer
+    pool, using HTTP GET requests. The httpd mod_proxy balancer-member
+    status page has to be enabled and accessible, as this module relies on parsing
+    this page. This module supports ansible check_mode, and requires BS4
+    python module.
+options:
+  balancer_url_suffix:
+    default: /balancer-manager/
+    description:
+      - Suffix of the balancer pool url required to access the balancer pool
+        status page (e.g. balancer_vhost[:port]/balancer_url_suffix).
+    required: false
+  balancer_vhost:
+    default: None
+    description:
+      - (ipv4|ipv6|fqdn):port of the Apache httpd 2.2 mod_proxy balancer pool.
+    required: true
+  member_host:
+    default: None
+    description:
+      - (ipv4|ipv6|fqdn) of the balancer member to get or to set attributes to.
+        Port number is autodetected and should not be specified here.
+        If undefined, apache22_mod_proxy module will return a members list of
+        dictionaries of all the current balancer pool members' attributes.
+    required: false
+  state:
+    default: None
+    description:
+      - Desired state of the member host.
+    required: false
+    choices: ["enabled", "disabled"]
+  tls:
+    default: false
+    description:
+      - Use https to access balancer management page.
+    choices: ["true", "false"]
+  validate_certs:
+    default: true
+    description:
+      - Validate ssl/tls certificates.
+    choices: ["true", "false"]i
+  url_username:
+     default: None
+     description:
+      - give the username if the balancer manager page is protected by BASIC AUTH.
+  url_password:
+    default: None
+    description:
+      - give the password if the balancer manager page is protected by BASIC AUTH.
+
+'''
+
+EXAMPLES = '''
+# Get all current balancer pool members' attributes:
+- apache22_mod_proxy:
+    balancer_vhost: 10.0.0.2
+# Get a specific member's attributes:
+- apache22_mod_proxy:
+    balancer_vhost: myws.mydomain.org
+    balancer_suffix: /lb/
+    member_host: node1.myws.mydomain.org
+    url_username: <user_name>
+    url_password: <password>
+# Enable all balancer pool members:
+- apache22_mod_proxy:
+    balancer_vhost: '{{ myloadbalancer_host }}'
+  register: result
+- apache22_mod_proxy:
+    balancer_vhost: '{{ myloadbalancer_host }}'
+    member_host: '{{ item.host }}'
+    state: present
+  with_items: '{{ result.members }}'
+# Gracefully disable a member from a loadbalancer node:
+- apache22_mod_proxy:
+    balancer_vhost: '{{ vhost_host }}'
+    member_host: '{{ member.host }}'
+    state: drained
+  delegate_to: myloadbalancernode
+- wait_for:
+    host: '{{ member.host }}'
+    port: '{{ member.port }}'
+    state: drained
+  delegate_to: myloadbalancernode
+- apache22_mod_proxy:
+    balancer_vhost: '{{ vhost_host }}'
+    member_host: '{{ member.host }}'
+    state: absent
+  delegate_to: myloadbalancernode
+'''
+
+RETURN = '''
+member:
+    description: specific balancer member information dictionary, returned when apache22_mod_proxy module is invoked with member_host parameter.
+    type: dict
+    returned: success
+    sample:
+      {"attributes":
+            {"Busy": "0",
+            "Elected": "42",
+            "Factor": "1",
+            "From": "136K",
+            "Load": "0",
+            "Route": null,
+            "RouteRedir": null,
+            "Set": "0",
+            "Status": "Init Ok ",
+            "To": " 47K",
+            "Worker URL": null
+        },
+        "balancer_url": "http://10.10.0.2/balancer-manager/",
+        "host": "10.10.0.20",
+        "management_url": "http://10.10.0.2/lb/?b=mywsbalancer&w=http://10.10.0.20:8080/ws&nonce=8925436c-79c6-4841-8936-e7d13b79239b",
+        "path": "/ws",
+        "port": 8080,
+        "protocol": "http",
+        "status": {
+            "disabled": false,
+        }
+      }
+members:
+    description: list of member (defined above) dictionaries, returned when apache22_mod_proxy is invoked with no member_host and state args.
+    returned: success
+    type: list
+    sample:
+      [{"attributes": {
+            "Busy": "0",
+            "Elected": "42",
+            "Factor": "1",
+            "From": "136K",
+            "Load": "0",
+            "Route": null,
+            "RouteRedir": null,
+            "Set": "0",
+            "Status": "Init Ok ",
+            "To": " 47K",
+            "Worker URL": null
+        },
+        "balancer_url": "http://10.10.0.2/balancer-manager/",
+        "host": "10.10.0.20",
+        "management_url": "http://10.10.0.2/lb/?b=mywsbalancer&w=http://10.10.0.20:8080/ws&nonce=8925436c-79c6-4841-8936-e7d13b79239b",
+        "path": "/ws",
+        "port": 8080,
+        "protocol": "http",
+        "status": {
+            "disabled": false,
+        }
+        },
+        {"attributes": {
+            "Busy": "0",
+            "Elected": "42",
+            "Factor": "1",
+            "From": "136K",
+            "Load": "0",
+            "Route": null,
+            "RouteRedir": null,
+            "Set": "0",
+            "Status": "Init Ok ",
+            "To": " 47K",
+            "Worker URL": null
+        },
+        "balancer_url": "http://10.10.0.2/balancer-manager/",
+        "host": "10.10.0.21",
+        "management_url": "http://10.10.0.2/lb/?b=mywsbalancer&w=http://10.10.0.21:8080/ws&nonce=8925436c-79c6-4841-8936-e7d13b79239b",
+        "path": "/ws",
+        "port": 8080,
+        "protocol": "http",
+        "status": {
+            "disabled": false,
+        }
+      ]
+'''
 import re
 
 try:
@@ -11,8 +200,7 @@ else:
 # balancer member attributes extraction regexp: the exp inside "()" is catch expression. where each expression inside is stored as a member of list ['abc','def']
 EXPRESSION = r"(b=([\w\.\-]+)&w=(https?|ajp|wss?|ftp|[sf]cgi)://([\w\.\-]+):?(\d*)([/\w\.\-]*)&?[\w\-\=]*)"
 # Apache2 server version extraction regexp:
-APACHE_VERSION_EXPRESSION = r"Server Version: Apache/([\d.]+) \(([\w]+)\)"
-
+APACHE_VERSION_EXPRESSION = r"Server Version: Apache/([\d.]+) \((.*)?\)"
 
 def regexp_extraction(string, _regexp, groups=1): # to extract the regex
     """ Returns the capture group (default=1) specified in the regexp, applied to the string """
@@ -83,7 +271,6 @@ class BalancerMember(object):
                     soup = BeautifulSoup(balancer_member_page[0], "lxml")
                 else:
                     soup = self.soup
-		#soup = BeautifulSoup(balancer_member_page[0])
             except TypeError:
                     self.module.fail_json(msg="Cannot parse balancer_member_page HTML! " + str(soup))
             else:
@@ -133,7 +320,6 @@ class BalancerMember(object):
 		temp_url = temp_url.replace("?",replace_response1)
 
         response = fetch_url(self.module, temp_url, method="GET")
-	#response = urllib.urlopen(temp_url)
         try:
             assert response[1]['status'] == 200
         except AssertionError:
@@ -141,7 +327,6 @@ class BalancerMember(object):
 
     if global_module.params['member_host'] is not None:
         attributes = property(get_member_attributes)
-    #attributes = property(get_member_attributes)
     status = property(get_member_status, set_member_status)
 
 
@@ -188,7 +373,6 @@ class Balancer(object):
                 except AssertionError:
                     self.module.fail_json(msg="Argument 'balancer_member_suffix' is empty!")
                 else:
-                    #yield BalancerMember(str(self.base_url + balancer_member_suffix), str(self.url), self.module)
                     if self.module.params['member_host'] is None:
                         yield BalancerMember(str(self.base_url + balancer_member_suffix), str(self.url),self.module, soup)
                     else:
