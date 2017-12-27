@@ -13,7 +13,7 @@ ANSIBLE_METADATA = {'metadata_version': '1.0',
 DOCUMENTATION = '''
 ---
 module: apache22_mod_proxy
-author: nikhil zadoo"
+author: "nikhil zadoo"
 version_added: "1.0"
 short_description: Set and/or get members' attributes of an Apache httpd 2.2 mod_proxy balancer pool
 description:
@@ -57,10 +57,10 @@ options:
     default: true
     description:
       - Validate ssl/tls certificates.
-    choices: ["true", "false"]i
+    choices: ["true", "false"]
   url_username:
-     default: None
-     description:
+    default: None
+    description:
       - give the username if the balancer manager page is protected by BASIC AUTH.
   url_password:
     default: None
