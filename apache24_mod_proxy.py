@@ -293,7 +293,7 @@ class BalancerMember(object):
         	subsoup = soup.find_all('tr')
         	for line in subsoup:
             	    line1 = line.find_all('td')
-            	    if re.search(pattern=self.host, string=str(line1)):
+            	    if re.search(pattern="</a></td>, <td>" + self.host, string=str(line1)):
                 	return dict((keys[x].string, line1[x].string) for x in range(0, len(keys)))
 
     def get_member_status(self):
